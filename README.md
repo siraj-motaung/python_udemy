@@ -1,6 +1,35 @@
 
 # The Orc Shack REST API
 
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Technology Stack](#technology-stack)
+3. [Getting Started](#getting-started)
+   - [Prerequisites](#prerequisites)
+   - [Quick Start](#quick-start)
+   - [Environment Configuration](#environment-configuration)
+   - [Database](#database)
+   - [Manual Setup](#manual-setup)
+   - [Development Commands](#development-commands)
+   - [Application URLs](#application-urls)
+4. [Troubleshooting](#troubleshooting)
+   - [PostgreSQL Container Fails to Start](#postgresql-container-fails-to-start)
+5. [Architecture & Design Decisions](#architecture--design-decisions)
+   - [Application Structure](#application-structure)
+   - [Request Flow](#request-flow)
+6. [API Documentation & Interactive Exploration](#api-documentation--interactive-exploration)
+   - [Swagger UI](#swagger-ui)
+   - [Authentication Flow](#authentication-flow)
+   - [ReDoc](#redoc)
+7. [Testing & Quality Assurance](#testing--quality-assurance)
+   - [Running the Tests](#running-the-tests)
+   - [Code Quality](#code-quality)
+8. [Observability](#observability)
+   - [Prometheus Metrics and Viewing Metrics in Prometheus](#prometheus-metrics-and-viewing-metrics-in-prometheus)
+   - [Viewing Metrics in Prometheus](#viewing-metrics-in-prometheus)
+
+
 ### Overview
 
 The Orc Shack REST API is a RESTful backend for a Middle-earth restaurant.
