@@ -24,7 +24,7 @@
   - [Database and Migrations](#database-and-migrations)
   - [Error Handling](#error-handling)
   - [Authentication and Authorization](#authentication-and-authorization)
-  - [Testing Strategy](#testing-strategy)
+  - [Testing](#testing)
   - [Scope and Trade-offs](#scope-and-trade-offs)
 - [API Documentation & Interactive Exploration](#api-documentation--interactive-exploration)
   - [Swagger UI](#swagger-ui)
@@ -81,6 +81,25 @@ The following tools are required to run the application locally:
 
 Docker Compose is used to run the PostgreSQL database and Prometheus locally.
 
+#### Docker Compose prerequisites
+
+To run the complete stack with:
+
+```bash
+docker compose up --build
+```
+
+you need:
+
+- Docker Desktop installed and running, including Docker Compose v2.
+- Internet access to download the base images and Python dependencies during the build.
+- Ports `8000`, `5432`, and `9090` available on the host.
+- Sufficient Docker resources to run the API, PostgreSQL, and Prometheus containers.
+
+Python, Make, and a local virtual environment are not required for the Docker-based setup.
+The Compose configuration supplies development defaults when `.env` is absent, but you should
+copy `.env.example` to `.env` and set a secure `JWT_SECRET_KEY` before sharing or deploying the stack.
+
 ### Quick Start
 
 Clone the repository and navigate to the project directory:
@@ -90,11 +109,7 @@ git clone <repository-url>
 cd <repository-directory>
 ```
 
-Start the application:
-
-```bash
-make run
-```
+#### Docker setup (recommended)
 
 To run the API, PostgreSQL, and Prometheus entirely in Docker:
 
@@ -102,22 +117,23 @@ To run the API, PostgreSQL, and Prometheus entirely in Docker:
 docker compose up --build
 ```
 
-The API container applies Alembic migrations and creates the default admin user
-before starting FastAPI. The containerized API is available at
-`http://localhost:8000`, and Prometheus is available at `http://localhost:9090`.
+The Docker entrypoint runs the latest Alembic migrations and creates the default
+admin user if one does not already exist before starting FastAPI. Docker installs
+the Python dependencies inside the API image, so no local virtual environment is
+required.
 
-The startup process will:
+The Docker startup process will:
 
-1. Create the Python virtual environment if it does not already exist.
-2. Install the required Python dependencies.
-3. Create `.env` from `.env.example` if `.env` does not already exist.
-4. Start PostgreSQL using Docker Compose.
-5. Run the latest Alembic database migrations.
-6. **Create the default admin user if one does not already exist.**
-   - **Email:** `admin@admin.com`
-   - **Password:** `admin`
-   - **Role:** `ADMIN`
-7. Start the FastAPI application.
+1. Build the API image and install the Python dependencies inside the image.
+2. Start PostgreSQL and wait for it to become healthy.
+3. Run the latest Alembic database migrations.
+4. **Create the default admin user if one does not already exist.**
+5. Start the FastAPI application on port `8000`.
+6. Start Prometheus on port `9090`.
+
+Unlike the local setup, Docker does not create a local virtual environment or copy
+`.env.example` to `.env`. Compose uses the values from `.env` when available and
+development defaults from `docker-compose.yml` when they are not.
 
 Once started, the API will be available at:
 
@@ -126,6 +142,29 @@ Once started, the API will be available at:
 Interactive API documentation is available through Swagger UI:
 
 `http://localhost:8000/docs`
+
+#### Local setup
+
+If Docker is unavailable, start the application directly with the local Python environment:
+
+```bash
+make run
+```
+
+The local startup process will:
+
+1. Create the Python virtual environment if it does not already exist.
+2. Install the required Python dependencies.
+3. Create `.env` from `.env.example` if `.env` does not already exist.
+4. Start PostgreSQL, run migrations, create the default admin user, and start FastAPI.
+
+#### Default development admin credentials
+
+These credentials are created by both the Docker and local startup flows:
+
+- **Email:** `admin@admin.com`
+- **Password:** `admin123`
+- **Role:** `ADMIN`
 
 ### Environment Configuration
 
@@ -214,13 +253,6 @@ Create the **default admin user**:
 python -m scripts.create_admin
 ```
 
-**Default admin credentials:**
-
-- **Email:** `admin@admin.com`
-- **Password:** `admin`
-- **Role:** `ADMIN`
-
-
 Start the FastAPI application:
 
 ```bash
@@ -229,7 +261,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ### Development Commands
 
-TThe following Make commands are available:
+The following Make commands are available:
 
 | Command | Description |
 |---|---|
@@ -299,57 +331,21 @@ If the `postgres` container is restarting, inspect its logs:
 docker logs postgres
 ```
 
-If the logs contain an error indicating that the PostgreSQL data directory format is incompatible with PostgreSQL 18+, the issue is caused by using the `postgres:latest` image with the PostgreSQL data volume.
-
-For a reproducible development environment, PostgreSQL should be pinned to version 17 and the obsolete Compose `version` field should be removed.
-
-Replace the contents of `docker-compose.yml` with:
-
-```yaml
-services:
-  postgres:
-    image: postgres:17
-    container_name: postgres
-    environment:
-      POSTGRES_USER: dancingponysvc
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: dancingpony
-    volumes:
-      - postgres_data_2:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
-    depends_on:
-      - postgres
-    restart: unless-stopped
-
-volumes:
-  postgres_data_2:
-  prometheus_data:
-```
-
-Then recreate the PostgreSQL container and volume:
+The current Compose configuration pins PostgreSQL to version 17. If an existing
+database volume was created with an incompatible PostgreSQL version, recreate the
+local development volume:
 
 ```bash
 docker compose down -v
 ```
 
-After that, start the application normally:
+Then start the application normally:
 
 ```bash
 make run
 ```
 
-`make run` will start PostgreSQL, apply the pending Alembic migrations, create the default admin user if one does not already exist, and start the FastAPI application.
+`make run` will start PostgreSQL, apply the pending Alembic migrations, create the default admin user if one does not already exist, and start the FastAPI application. The API service remains part of the Compose configuration and should not be removed.
 
 **Note:** `docker compose down -v` removes the PostgreSQL Docker volume and therefore deletes the local development database. Do not use this command if you need to preserve existing local data.
 
@@ -637,12 +633,18 @@ During login, the supplied password is verified against the stored hash:
 password_hasher.verify(password_hash, password)
 ```
 
-Successful authentication returns a JWT access token containing the user's ID and an expiration time:
+Successful authentication returns a JWT access token containing the user's ID,
+expiration time, issuer, token type, purpose, role, and token version:
 
 ```python
 payload = {
     "sub": str(user_id),
     "exp": expires_at,
+  "iss": settings.jwt_issuer,
+  "type": "access",
+  "purpose": "access",
+  "role": user.role.value,
+  "ver": settings.jwt_token_version,
 }
 ```
 
@@ -676,36 +678,10 @@ def require_admin(
 This separation ensures that **authentication answers "Who are you?"**, while **authorization answers "What are you allowed to do?"**.
 
 
-### Testing Strategy
+### Testing
 
-The test suite uses **pytest** and is organized around the main application layers, with each layer tested at the appropriate level.
-
-- **Service unit tests** — test business logic in isolation by mocking repository functions. This allows business rules to be tested without requiring database access.
-- **Repository integration tests** — test SQLAlchemy queries and database operations against a dedicated PostgreSQL test database rather than mocking the database layer.
-- **API tests** — test HTTP behaviour, request validation, authentication, authorization, response schemas, and error handling through FastAPI's `TestClient`.
-- **Database tests** — verify database connectivity and infrastructure behaviour.
-- **Security tests** — test password hashing, password verification, JWT creation and validation, and authentication behaviour.
-
-The combination of mocked service tests and database-backed repository tests provides separation between business-logic testing and database integration testing.
-
-Repository tests use PostgreSQL so that SQLAlchemy queries, constraints, relationships, and database behaviour are tested against the same database technology used by the application.
-
-Database-backed tests use transaction-based fixtures where appropriate to isolate test data between tests.
-
-The focus is on testing **observable behaviour and important business rules** rather than aiming for arbitrary 100% code coverage.
-
-The test suite can be run with:
-
-```bash
-make test
-```
-
-Code quality checks are also available through Ruff:
-
-```bash
-make lint
-make format
-```
+Testing is organized by application layer. The detailed test categories and
+commands are documented in [Testing & Quality Assurance](#testing--quality-assurance).
 
 ### Scope and Trade-offs
 
@@ -759,11 +735,7 @@ To explore the authenticated API:
 Administrative operations, such as creating, updating, and deleting dishes, require an authenticated user with the appropriate role.
 
 The application creates a default **admin user** during startup if one does not already exist.
-
-Default development admin credentials:
-- **Email:** `admin@admin.com`
-- **Password:** `admin`
-- **Role:** `ADMIN`
+See [Default development admin credentials](#default-development-admin-credentials).
 
 ### ReDoc
 
