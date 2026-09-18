@@ -1,36 +1,7 @@
 
 # The Orc Shack REST API
 
-## Table of Contents
-
-1. [Overview](#overview)
-2. [Technology Stack](#technology-stack)
-3. [Getting Started](#getting-started)
-   - [Prerequisites](#prerequisites)
-   - [Quick Start](#quick-start)
-   - [Environment Configuration](#environment-configuration)
-   - [Database](#database)
-   - [Manual Setup](#manual-setup)
-   - [Development Commands](#development-commands)
-   - [Application URLs](#application-urls)
-4. [Troubleshooting](#troubleshooting)
-   - [PostgreSQL Container Fails to Start](#postgresql-container-fails-to-start)
-5. [Architecture & Design Decisions](#architecture--design-decisions)
-   - [Application Structure](#application-structure)
-   - [Request Flow](#request-flow)
-6. [API Documentation & Interactive Exploration](#api-documentation--interactive-exploration)
-   - [Swagger UI](#swagger-ui)
-   - [Authentication Flow](#authentication-flow)
-   - [ReDoc](#redoc)
-7. [Testing & Quality Assurance](#testing--quality-assurance)
-   - [Running the Tests](#running-the-tests)
-   - [Code Quality](#code-quality)
-8. [Observability](#observability)
-   - [Prometheus Metrics and Viewing Metrics in Prometheus](#prometheus-metrics-and-viewing-metrics-in-prometheus)
-   - [Viewing Metrics in Prometheus](#viewing-metrics-in-prometheus)
-
-
-### Overview
+## Overview
 
 The Orc Shack REST API is a RESTful backend for a Middle-earth restaurant.
 
@@ -38,7 +9,7 @@ The API allows authenticated users to interact with the restaurant's dishes and 
 
 The application was developed as part of the Bash Software Engineer take-home assignment, with a focus on **maintainability, testability, security, observability, and reasonable production readiness**.
 
-### Technology Stack
+## Technology Stack
 
 - **Python 3.11+**
 - **FastAPI** — REST API framework
@@ -55,9 +26,9 @@ The application was developed as part of the Bash Software Engineer take-home as
 - **Docker / Docker Compose** — local infrastructure
 
 
-### Getting Started
+## Getting Started
 
-#### Prerequisites
+### Prerequisites
 
 The following tools are required to run the application locally:
 
@@ -68,7 +39,7 @@ The following tools are required to run the application locally:
 
 Docker Compose is used to run the PostgreSQL database and Prometheus locally.
 
-#### Quick Start
+### Quick Start
 
 Clone the repository and navigate to the project directory:
 
@@ -104,7 +75,7 @@ Interactive API documentation is available through Swagger UI:
 
 `http://localhost:8000/docs`
 
-#### Environment Configuration
+### Environment Configuration
 
 The application uses environment variables for configuration.
 
@@ -127,7 +98,7 @@ The main configuration values include:
 - `LOG_LEVEL` — application logging level
 - `ENVIRONMENT` — application environment
 
-#### Database
+### Database
 
 PostgreSQL is provided through Docker Compose.
 
@@ -147,7 +118,7 @@ alembic upgrade head
 
 The `make run` command performs this step automatically.
 
-#### Manual Setup
+### Manual Setup
 
 If `make run` is unavailable or does not work in a particular environment, the application can be started manually.
 
@@ -202,7 +173,7 @@ Start the FastAPI application:
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-#### Development Commands
+### Development Commands
 
 TThe following Make commands are available:
 
@@ -222,7 +193,7 @@ TThe following Make commands are available:
 | `make db-down` | Stop the PostgreSQL Docker service |
 | `make clean` | Remove the test database container and Python virtual environment |
 
-#### Application URLs
+### Application URLs
 
 Once the application is running:
 
@@ -234,7 +205,7 @@ Once the application is running:
 | `http://localhost:8000/metrics` | Prometheus metrics |
 | `http://localhost:9090` | Prometheus web interface |
 
-### Troubleshooting
+## Troubleshooting
 
 If `make metrics` is run before the FastAPI application is running, the command will exit with an error and instruct the developer to run `make run` first.
 
@@ -252,7 +223,7 @@ docker compose up -d postgres
 
 If the application cannot connect to PostgreSQL, verify that the `DATABASE_URL` in `.env` matches the PostgreSQL configuration in `docker-compose.yml`.
 
-#### PostgreSQL container fails to start
+### PostgreSQL container fails to start
 
 If `make run` fails during the Alembic migration step with a PostgreSQL connection error such as:
 
@@ -329,9 +300,9 @@ make run
 **Note:** `docker compose down -v` removes the PostgreSQL Docker volume and therefore deletes the local development database. Do not use this command if you need to preserve existing local data.
 
 
-### Architecture & Design Decisions
+## Architecture & Design Decisions
 
-#### Application Structure
+### Application Structure
 
 The application follows a layered structure that separates HTTP handling, business logic, database access, and infrastructure concerns.
 
@@ -394,7 +365,8 @@ The separation allows each layer to have a focused responsibility. API routes ha
 
 This keeps the implementation easier to test and change without introducing additional abstraction layers that are not necessary for the scope of the assignment.
 
-#### Request Flow
+
+### Request Flow
 
 Requests flow through the application from the API layer to the service layer, repository layer, and database.
 
@@ -446,12 +418,261 @@ Errors are handled centrally rather than being converted into HTTP responses ind
 
 This separation keeps authentication, authorization, HTTP concerns, business logic, and database operations clearly separated while allowing the individual components to be tested independently.
 
+### Service and Repository Layers
 
-### API Documentation & Interactive Exploration
+The application separates business logic from database access through service and repository layers.
+
+The **service layer** handles application and business rules, including:
+
+- Validating whether a dish or user exists
+- Preventing duplicate ratings
+- Determining whether an operation is allowed
+
+The **repository layer** handles database operations using SQLAlchemy, including:
+
+- Querying entities
+- Creating entities
+- Updating entities
+- Deleting entities
+
+The typical request flow is:
+
+```text
+API → Service → Repository → SQLAlchemy → PostgreSQL
+```
+
+This separation keeps API routes focused on HTTP concerns and allows business logic and database operations to be tested independently.
+
+Repositories are organized by domain rather than using generic repository abstractions. This keeps the implementation straightforward while maintaining a clear separation of responsibilities appropriate for the scope of the application.
+
+
+### Configuration
+
+Application configuration is centralized in `app/core/config.py` using **Pydantic Settings**.
+
+Configuration values such as the database URL, logging level, application environment, and JWT settings are loaded from environment variables, with non-sensitive defaults provided where appropriate.
+
+A local `.env` file is supported for development and is excluded from version control. An `.env.example` file is committed with placeholder values to document the required configuration.
+
+The configuration is loaded once and reused throughout the application. Components such as the database and logging modules consume the centralized settings rather than loading environment variables independently.
+
+Sensitive values, particularly database credentials and JWT secrets, are not hardcoded in the application or exposed through logs or API responses.
+ 
+### Database and Migrations
+
+The application uses **PostgreSQL** as its relational database and **SQLAlchemy 2.x** as the ORM.
+
+The SQLAlchemy engine is configured in `app/db/database.py` using the centralized application settings:
+
+```python
+engine = create_engine(
+    settings.database_url,
+    pool_pre_ping=True,
+)
+```
+
+`pool_pre_ping=True` allows SQLAlchemy to check that pooled connections are still valid before using them, helping recover from stale database connections.
+
+A session factory is created for database access:
+
+```python
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    expire_on_commit=False,
+)
+```
+
+Database sessions are provided to FastAPI routes through a dependency:
+
+```python
+def get_session() -> Iterator[Session]:
+    db_session = SessionLocal()
+    try:
+        yield db_session
+    finally:
+        db_session.close()
+```
+
+This ensures each request receives a database session and that the session is closed when the request finishes.
+
+SQLAlchemy models inherit from a shared declarative `Base`:
+
+```python
+class Base(DeclarativeBase):
+    """Base declarative class for all SQLAlchemy ORM models."""
+```
+
+**Alembic** is used for database schema migrations. Schema changes are represented as versioned migration files and applied using Alembic rather than creating tables automatically at application startup.
+
+For example:
+
+```bash
+alembic upgrade head
+```
+
+This provides a reproducible database schema across development, testing, and deployment environments.
+
+The application uses the `psycopg` PostgreSQL driver with synchronous SQLAlchemy. This keeps the database layer straightforward and appropriate for the scope and timebox of the assignment.
+
+
+### Error Handling
+
+The application uses centralized exception handling to provide consistent API error responses and keep error-handling logic out of individual route handlers.
+
+Application-specific exceptions inherit from a common `AppError` base class:
+
+```text
+AppError
+├── NotFoundError
+│   └── DishNotFoundError
+├── ConflictError
+│   ├── UserAlreadyExistsError
+│   └── RatingAlreadyExistsError
+├── AuthenticationError
+├── AuthorizationError
+└── RateLimitError
+```
+
+Each exception defines an appropriate HTTP status code and application-specific error code.
+
+For example:
+
+```python
+class DishNotFoundError(NotFoundError):
+    code = "DISH_NOT_FOUND"
+```
+
+The exception handlers are registered centrally in `app/main.py`:
+
+```python
+app.add_exception_handler(AppError, handle_app_error)
+app.add_exception_handler(Exception, handle_unexpected_error)
+```
+
+Application errors are converted into a consistent JSON response:
+
+```json
+{
+  "error_message": "Dish with ID 42 was not found.",
+  "code": "DISH_NOT_FOUND"
+}
+```
+
+Unexpected exceptions are logged with the request context and return a generic `500 Internal Server Error` response without exposing internal implementation details.
+
+Request validation errors are also handled centrally, allowing validation failures to follow the same API error-response conventions.
+
+This keeps route and service code focused on application behaviour while providing clients with predictable error responses.
+
+### Authentication and Authorization
+
+The API uses password-based authentication with **Argon2** for password hashing and **JWT access tokens** for authenticated requests.
+
+Passwords are never stored in plaintext. During registration, the password is hashed before being stored:
+
+```python
+password_hash = password_hasher.hash(password)
+```
+
+During login, the supplied password is verified against the stored hash:
+
+```python
+password_hasher.verify(password_hash, password)
+```
+
+Successful authentication returns a JWT access token containing the user's ID and an expiration time:
+
+```python
+payload = {
+    "sub": str(user_id),
+    "exp": expires_at,
+}
+```
+
+Protected endpoints use a FastAPI authentication dependency to:
+
+1. Extract the bearer token from the `Authorization` header.
+2. Validate the JWT signature and expiration.
+3. Identify the authenticated user.
+4. Reject invalid or expired tokens with `401 Unauthorized`.
+
+Authorization is handled separately from authentication. An authenticated user's role determines which operations they are allowed to perform.
+
+The application currently defines two roles:
+
+- **Customer** — can view, list, search, and rate dishes.
+- **Admin** — can perform administrative dish operations such as creating, updating, and deleting dishes.
+
+Administrative access is enforced through a FastAPI dependency:
+
+```python
+def require_admin(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if current_user.role != UserRole.ADMIN:
+        raise AuthorizationError(
+            "You do not have permission to perform this action."
+        )
+    return current_user
+```
+
+This separation ensures that **authentication answers "Who are you?"**, while **authorization answers "What are you allowed to do?"**.
+
+
+### Testing Strategy
+
+The test suite uses **pytest** and is organized around the main application layers, with each layer tested at the appropriate level.
+
+- **Service unit tests** — test business logic in isolation by mocking repository functions. This allows business rules to be tested without requiring database access.
+- **Repository integration tests** — test SQLAlchemy queries and database operations against a dedicated PostgreSQL test database rather than mocking the database layer.
+- **API tests** — test HTTP behaviour, request validation, authentication, authorization, response schemas, and error handling through FastAPI's `TestClient`.
+- **Database tests** — verify database connectivity and infrastructure behaviour.
+- **Security tests** — test password hashing, password verification, JWT creation and validation, and authentication behaviour.
+
+The combination of mocked service tests and database-backed repository tests provides separation between business-logic testing and database integration testing.
+
+Repository tests use PostgreSQL so that SQLAlchemy queries, constraints, relationships, and database behaviour are tested against the same database technology used by the application.
+
+Database-backed tests use transaction-based fixtures where appropriate to isolate test data between tests.
+
+The focus is on testing **observable behaviour and important business rules** rather than aiming for arbitrary 100% code coverage.
+
+The test suite can be run with:
+
+```bash
+make test
+```
+
+Code quality checks are also available through Ruff:
+
+```bash
+make lint
+make format
+```
+
+### Scope and Trade-offs
+
+The implementation was intentionally scoped to the requirements of the assignment and its 6–8 hour timebox. The focus was on delivering a maintainable, testable, secure, and observable REST API without introducing infrastructure that was not necessary for the current scope.
+
+The following trade-offs were made:
+
+- **Synchronous SQLAlchemy** was chosen instead of the async API to keep the database layer simpler and reduce implementation overhead.
+- **Domain-specific repositories** were used instead of generic repository abstractions to avoid unnecessary complexity.
+- **In-memory login rate limiting** was used for brute-force protection. A distributed solution such as Redis would be more appropriate for a multi-instance production deployment.
+- **Environment-based configuration** is used for application secrets. A dedicated secrets manager would be preferable in a production environment.
+- **JWT authentication** was implemented for the assignment rather than introducing a full OAuth2/SSO integration.
+- **Prometheus and application logging** provide basic observability without introducing a full centralized monitoring and logging platform.
+- **AI-powered review sentiment analysis** and other above-and-beyond features were not included, allowing the core requirements to remain the priority.
+
+These choices keep the implementation focused while leaving clear paths for future production enhancements where the application's scale or requirements justify them.
+
+
+## API Documentation & Interactive Exploration
 
 The API provides interactive OpenAPI documentation through FastAPI.
 
-#### Swagger UI
+### Swagger UI
 
 Swagger UI is available at:
 
@@ -466,7 +687,7 @@ Swagger UI can be used to:
 - Execute API requests directly against the running application.
 - Inspect HTTP responses and status codes.
 
-#### Authentication Flow
+### Authentication Flow
 
 Protected endpoints require a valid JWT access token.
 
@@ -488,7 +709,7 @@ Default development admin credentials:
 - **Password:** `admin`
 - **Role:** `ADMIN`
 
-#### ReDoc
+### ReDoc
 
 Alternative API documentation is available through ReDoc:
 
@@ -497,7 +718,7 @@ Alternative API documentation is available through ReDoc:
 ReDoc provides a read-only view of the generated OpenAPI specification.
 
 
-### Testing & Quality Assurance
+## Testing & Quality Assurance
 
 The application includes an automated test suite using **pytest** to verify API behaviour, business logic, database operations, and security-critical functionality.
 
@@ -509,7 +730,7 @@ The tests are organized around the main application layers:
 - **Database tests** — Verify database connectivity and infrastructure.
 - **Security tests** — Verify password hashing, password verification, JWT creation and validation, and authentication-related behaviour.
 
-#### Running the Tests
+### Running the Tests
 
 Run the complete test suite with:
 
@@ -525,7 +746,7 @@ Alternatively:
 
 The test suite should complete successfully before changes are considered ready.
 
-#### Code Quality
+### Code Quality
 
 Ruff is used for linting and code formatting.
 
@@ -544,13 +765,13 @@ make format
 This provides automated checks for common Python issues and helps maintain consistent code quality throughout the project.
 
 
-### Observability
+## Observability
 
 The application includes basic observability through **application logging** and **Prometheus metrics**.
 
 Application logs provide information about authentication events, application operations, and unexpected errors, while Prometheus metrics provide visibility into HTTP request activity and application performance.
 
-#### Prometheus Metrics and Viewing Metrics in Prometheus
+### Prometheus Metrics and Viewing Metrics in Prometheus
 
 The application exposes Prometheus metrics through the `/metrics` endpoint.
 
@@ -580,7 +801,7 @@ To start Prometheus and open its web interface:
 make prometheus
 ```
 
-#### Viewing Metrics in Prometheus
+### Viewing Metrics in Prometheus
 
 Once both the FastAPI application and Prometheus are running, open:
 
@@ -611,7 +832,7 @@ To query application metrics:
 The `/metrics` endpoint provides the raw Prometheus exposition format, while the Prometheus web interface can be used to query and explore the collected metrics.
 
 
-##### Prometheus Monitoring
+#### Prometheus Monitoring
 
 The Prometheus target is configured and reporting application metrics successfully.
 
@@ -622,3 +843,102 @@ The Prometheus target is configured and reporting application metrics successful
 **Figure 2 — Prometheus query displaying HTTP request metrics collected from the application.**
 
 ![Prometheus HTTP metrics](docs/images/prometheus-http-metrics.png)
+
+
+
+
+--------------------------------------------
+
+
+
+
+
+### Objective
+
+Your assignment is to implement a REST API for a restaurant.
+
+### Brief
+
+Frogo Baggins, a hobbit from the Shire, has a great idea. He wants to build a restaurant that serves traditional dishes from the world of Middle Earth. The restaurant will be called "**The Orc Shack**" and will have a cozy atmosphere.
+
+Frogo has hired you to build the website for his restaurant. As payment, he has offered you either a chest of gold or a ring. Choose wisely.
+
+### Tasks (Specifications)
+
+This assignment has 4 tasks, which you can attempt based on your level of experience. We expect candidates applying for a Junior engineer positions to complete at least the first task, Intermediate engineers must also complete the second task, and finally, seniors must also complete the 3rd task. Lastly there are some ideas in the 4th task for engineers who want to go above and beyond.
+
+
+#### Task 1 (All Candidates):
+
+Deliver a REST API that meets the following requirements:
+- An API user must be able to:
+    - Create, View, List, Update, and Delete dishes.
+    - Dishes must have a name, description, price, and image.
+
+- Customers must be able to take the following actions:
+    - Search, View, and Rate dishes
+
+*Junior engineers do not _need_ to worry about users or authentication.*
+
+
+#### Task 2 (Intermediate & Senior)
+- Add user, permission, and authentication support.
+- Users must be able to register and login.
+- All functionality of the API must require a logged in user (except Registration)
+- At a minimum, the system should support password based authentication.
+- Users must have a name and email address and password.
+- Add validation to the data entities in the API.
+- An Evil Orc is attempting to brute force passwords for known email addresses. Add functionality to defend against this. (You can use any methodology that you deem suitable)
+
+
+#### Task 3 (Senior)
+
+- The API is running on an old Shire Server that is starting to struggle with the load of the now popular website. Implement a solution to improve the performance of the API on the same hardware. 
+- Add support for multiple different restaurants to use the product (multi-tenant SaaS)
+
+
+#### Task 4 (Above and Beyond)
+
+- The evil Orc has created many sockpuppet accounts and has left many bad reviews. Use an AI/ML solution to provide a sentiment score for each review.
+- To prevent abuse, add rate-limiting per logged in customer.
+- Allow users to login using OAuth2 based SSO (Google, etc)
+
+### Constraints
+
+- At Bash we make extensive use of Golang so first prize will always be to use Golang for your assignment.
+- Alternative languages we will accept are Python (preferably fastapi), or JS/Typescript
+- Implement a REST API utilizing JSON for request and response bodies where applicable.
+
+### Tips, Advice, Guidance
+
+- You are encouraged to make use of a web framework, SQL ORM, etc. This will help reduce the overhead of writing boilerplate code, and will let you focus on the core requirements.
+- You are welcome to make use of AI to help write the code.
+- This assessment is open ended, and candidates could spend weeks crafting the perfect API. We encourage you to timebox yourself, and limit the amount of time you spend. When we talk through the assessment, this can be provided as an input, and it is good to talk about the trade-offs made given the time constraint. We recommend about 6-8 hours of focused time.
+
+### Evaluation Criteria
+
+The test will be evaluated based on functional and non-functional requirements.
+
+For functional requirements, your API needs to work, and meet the requirements as provided for your level.
+
+For non-functional requirements, your API needs to be production-ready to a reasonable extent. We are looking for adherence to qualities such as testability, maintainability, observability, and security.
+
+### Supporting Assets
+
+You've been provided with a docker-compose file which will bring up a postgres database and prometheus. These are optional and provided to help get started.
+
+#### Postgres
+
+You can connect to the database via localhost:5432 using the username and password configured in the docker-compose.yml.
+
+#### Prometheus
+
+You can configure prometheus via the provided prometheus.yml file.
+
+### CodeSubmit
+
+Please organise, design, test, and document your code as if it were going into production - then push your changes to the Main branch. After you have pushed your code, you may submit the assignment on the assignment page.
+
+Best of luck, and happy coding!
+
+The Bash Team
