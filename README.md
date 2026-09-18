@@ -2,7 +2,6 @@
 # The Orc Shack REST API
 
 ## Table of Contents
----
 
 - [Overview](#overview)
 - [Technology Stack](#technology-stack)
@@ -40,7 +39,7 @@
 
 
 ## Overview
----
+
 The Orc Shack REST API is a RESTful backend for a Middle-earth restaurant.
 
 The API allows authenticated users to interact with the restaurant's dishes and ratings. It provides user registration and login, role-based authorization, dish management, dish search, customer ratings, input validation, brute-force protection, centralized error handling, application logging, automated testing, and Prometheus metrics.
@@ -48,7 +47,7 @@ The API allows authenticated users to interact with the restaurant's dishes and 
 The application was developed as part of the Bash Software Engineer take-home assignment, with a focus on **maintainability, testability, security, observability, and reasonable production readiness**.
 
 ## Technology Stack
----
+
 - **Python 3.11+**
 - **FastAPI** — REST API framework
 - **PostgreSQL** — relational database
@@ -65,7 +64,7 @@ The application was developed as part of the Bash Software Engineer take-home as
 
 
 ## Getting Started
----
+
 ### Prerequisites
 
 The following tools are required to run the application locally:
@@ -881,18 +880,16 @@ The Prometheus target is configured and reporting application metrics successful
 **Figure 2 — Prometheus query displaying HTTP request metrics collected from the application.**
 
 ![Prometheus HTTP metrics](docs/images/prometheus-http-metrics.png)
-
-
-
-
---------------------------------------------
-
+---
 
 <br>
 <br>
 <br>
 <br>
 <br>
+
+
+
 
 
 ### Objective
