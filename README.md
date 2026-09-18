@@ -4,6 +4,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [AI methodology notes](#ai-methodology-notes)
 - [Technology Stack](#technology-stack)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
@@ -45,6 +46,10 @@ The Orc Shack REST API is a RESTful backend for a Middle-earth restaurant.
 The API allows authenticated users to interact with the restaurant's dishes and ratings. It provides user registration and login, role-based authorization, dish management, dish search, customer ratings, input validation, brute-force protection, centralized error handling, application logging, automated testing, and Prometheus metrics.
 
 The application was developed as part of the Bash Software Engineer take-home assignment, with a focus on **maintainability, testability, security, observability, and reasonable production readiness**.
+
+## AI methodology notes
+
+A short record of how ChatGPT and GitHub Copilot were used during the project, including the approach to architecture decisions, trade-offs, and ownership, is available in [ai/README.md](ai/README.md).
 
 ## Technology Stack
 
@@ -91,6 +96,16 @@ Start the application:
 make run
 ```
 
+To run the API, PostgreSQL, and Prometheus entirely in Docker:
+
+```bash
+docker compose up --build
+```
+
+The API container applies Alembic migrations and creates the default admin user
+before starting FastAPI. The containerized API is available at
+`http://localhost:8000`, and Prometheus is available at `http://localhost:9090`.
+
 The startup process will:
 
 1. Create the Python virtual environment if it does not already exist.
@@ -131,6 +146,8 @@ The main configuration values include:
 - `DATABASE_URL` — PostgreSQL connection URL
 - `JWT_SECRET_KEY` — secret used to sign JWT access tokens
 - `JWT_ALGORITHM` — JWT signing algorithm
+- `JWT_ISSUER` — expected service that issued JWT access tokens
+- `JWT_TOKEN_VERSION` — token claim version used to invalidate older token formats
 - `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` — access token lifetime
 - `LOG_LEVEL` — application logging level
 - `ENVIRONMENT` — application environment
@@ -349,6 +366,8 @@ app/
 │   ├── dependencies.py
 │   ├── exception_handlers.py
 │   ├── health.py
+│   ├── serializers/
+│   │   └── dish.py
 │   └── v1/
 │       ├── auth.py
 │       ├── dishes.py
@@ -389,7 +408,7 @@ The main responsibilities are:
 
 | Directory | Responsibility |
 |---|---|
-| `api/` | HTTP routes, request handling, dependencies, and exception handlers |
+| `api/` | HTTP routes, request handling, dependencies, serializers, and exception handlers |
 | `core/` | Cross-cutting concerns such as configuration, logging, security, and application exceptions |
 | `db/` | SQLAlchemy engine, sessions, declarative base, and database connectivity |
 | `models/` | SQLAlchemy ORM models representing database entities |
@@ -398,7 +417,7 @@ The main responsibilities are:
 | `services/` | Business logic and application rules |
 | `tests/` | Automated tests for the application's behaviour |
 
-The separation allows each layer to have a focused responsibility. API routes handle HTTP concerns, services handle business rules, repositories handle database operations, and SQLAlchemy handles communication with PostgreSQL.
+The separation allows each layer to have a focused responsibility. API routes handle HTTP concerns, serializers convert application results into response schemas, services handle business rules, repositories handle database operations, and SQLAlchemy handles communication with PostgreSQL.
 
 This keeps the implementation easier to test and change without introducing additional abstraction layers that are not necessary for the scope of the assignment.
 
