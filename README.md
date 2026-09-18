@@ -418,97 +418,178 @@ Errors are handled centrally rather than being converted into HTTP responses ind
 This separation keeps authentication, authorization, HTTP concerns, business logic, and database operations clearly separated while allowing the individual components to be tested independently.
 
 
+### API Documentation & Interactive Exploration
+
+The API provides interactive OpenAPI documentation through FastAPI.
+
+#### Swagger UI
+
+Swagger UI is available at:
+
+`http://localhost:8000/docs`
+
+Swagger UI can be used to:
+
+- View available API endpoints.
+- Inspect request and response schemas.
+- View validation requirements.
+- Authenticate using a JWT access token.
+- Execute API requests directly against the running application.
+- Inspect HTTP responses and status codes.
+
+#### Authentication Flow
+
+Protected endpoints require a valid JWT access token.
+
+To explore the authenticated API:
+
+1. Register a user using the registration endpoint.
+2. Log in using the user's email and password.
+3. Copy the returned access token.
+4. Use the **Authorize** button in Swagger UI.
+5. Enter the bearer token when prompted.
+6. Execute protected endpoints using the authenticated session.
+
+Administrative operations, such as creating, updating, and deleting dishes, require an authenticated user with the appropriate role.
+
+The application creates a default **admin user** during startup if one does not already exist.
+
+Default development admin credentials:
+- **Email:** `admin@admin.com`
+- **Password:** `admin`
+- **Role:** `ADMIN`
+
+#### ReDoc
+
+Alternative API documentation is available through ReDoc:
+
+`http://localhost:8000/redoc`
+
+ReDoc provides a read-only view of the generated OpenAPI specification.
 
 
+### Testing & Quality Assurance
+
+The application includes an automated test suite using **pytest** to verify API behaviour, business logic, database operations, and security-critical functionality.
+
+The tests are organized around the main application layers:
+
+- **API tests** — Verify HTTP endpoints, request validation, authentication, authorization, responses, and error handling.
+- **Service tests** — Verify business rules and application logic independently of the HTTP layer.
+- **Repository tests** — Verify database queries and operations against PostgreSQL.
+- **Database tests** — Verify database connectivity and infrastructure.
+- **Security tests** — Verify password hashing, password verification, JWT creation and validation, and authentication-related behaviour.
+
+#### Running the Tests
+
+Run the complete test suite with:
+
+```bash
+make test
+```
+
+Alternatively:
+
+```bash
+./venv/bin/python -m pytest
+```
+
+The test suite should complete successfully before changes are considered ready.
+
+#### Code Quality
+
+Ruff is used for linting and code formatting.
+
+Run the linter with:
+
+```bash
+make lint
+```
+
+Format the code with:
+
+```bash
+make format
+```
+
+This provides automated checks for common Python issues and helps maintain consistent code quality throughout the project.
 
 
+### Observability
 
-### Objective
+The application includes basic observability through **application logging** and **Prometheus metrics**.
 
-Your assignment is to implement a REST API for a restaurant.
+Application logs provide information about authentication events, application operations, and unexpected errors, while Prometheus metrics provide visibility into HTTP request activity and application performance.
 
-### Brief
+#### Prometheus Metrics and Viewing Metrics in Prometheus
 
-Frogo Baggins, a hobbit from the Shire, has a great idea. He wants to build a restaurant that serves traditional dishes from the world of Middle Earth. The restaurant will be called "**The Orc Shack**" and will have a cozy atmosphere.
+The application exposes Prometheus metrics through the `/metrics` endpoint.
 
-Frogo has hired you to build the website for his restaurant. As payment, he has offered you either a chest of gold or a ring. Choose wisely.
+Start the FastAPI application:
 
-### Tasks (Specifications)
+```bash
+make run
+```
 
-This assignment has 4 tasks, which you can attempt based on your level of experience. We expect candidates applying for a Junior engineer positions to complete at least the first task, Intermediate engineers must also complete the second task, and finally, seniors must also complete the 3rd task. Lastly there are some ideas in the 4th task for engineers who want to go above and beyond.
+The metrics endpoint is available at:
+
+`http://localhost:8000/metrics`
+
+To open the metrics endpoint:
+
+```bash
+make metrics
+```
+
+Prometheus runs through Docker Compose and is available at:
+
+`http://localhost:9090`
+
+To start Prometheus and open its web interface:
+
+```bash
+make prometheus
+```
+
+#### Viewing Metrics in Prometheus
+
+Once both the FastAPI application and Prometheus are running, open:
+
+`http://localhost:9090`
+
+Prometheus collects metrics from the FastAPI application every 10 seconds.
+
+To verify that Prometheus can reach the application:
+
+1. Open the Prometheus web interface.
+2. Navigate to **Status → Target health**.
+3. Under **Select scrape pool**, select `orc-shack-api`.
+4. Confirm that the target state is **UP**.
+
+To query application metrics:
+
+1. Navigate to the **Query** tab.
+2. In the **Expression** field, enter:
+
+   ```text
+   http_requests_total
+   ```
+
+3. Click **Execute**.
+4. Select **Table** to view the current metric values.
+5. Select **Graph** to visualize the metric over time.
+
+The `/metrics` endpoint provides the raw Prometheus exposition format, while the Prometheus web interface can be used to query and explore the collected metrics.
 
 
-#### Task 1 (All Candidates):
+##### Prometheus Monitoring
 
-Deliver a REST API that meets the following requirements:
-- An API user must be able to:
-    - Create, View, List, Update, and Delete dishes.
-    - Dishes must have a name, description, price, and image.
+The Prometheus target is configured and reporting application metrics successfully.
 
-- Customers must be able to take the following actions:
-    - Search, View, and Rate dishes
+**Figure 1 — Prometheus target health showing the `orc-shack-api` target as UP.**
 
-*Junior engineers do not _need_ to worry about users or authentication.*
+![Prometheus target health](docs/images/prometheus-targe-health.png)
 
+**Figure 2 — Prometheus query displaying HTTP request metrics collected from the application.**
 
-#### Task 2 (Intermediate & Senior)
-- Add user, permission, and authentication support.
-- Users must be able to register and login.
-- All functionality of the API must require a logged in user (except Registration)
-- At a minimum, the system should support password based authentication.
-- Users must have a name and email address and password.
-- Add validation to the data entities in the API.
-- An Evil Orc is attempting to brute force passwords for known email addresses. Add functionality to defend against this. (You can use any methodology that you deem suitable)
-
-
-#### Task 3 (Senior)
-
-- The API is running on an old Shire Server that is starting to struggle with the load of the now popular website. Implement a solution to improve the performance of the API on the same hardware. 
-- Add support for multiple different restaurants to use the product (multi-tenant SaaS)
-
-
-#### Task 4 (Above and Beyond)
-
-- The evil Orc has created many sockpuppet accounts and has left many bad reviews. Use an AI/ML solution to provide a sentiment score for each review.
-- To prevent abuse, add rate-limiting per logged in customer.
-- Allow users to login using OAuth2 based SSO (Google, etc)
-
-### Constraints
-
-- At Bash we make extensive use of Golang so first prize will always be to use Golang for your assignment.
-- Alternative languages we will accept are Python (preferably fastapi), or JS/Typescript
-- Implement a REST API utilizing JSON for request and response bodies where applicable.
-
-### Tips, Advice, Guidance
-
-- You are encouraged to make use of a web framework, SQL ORM, etc. This will help reduce the overhead of writing boilerplate code, and will let you focus on the core requirements.
-- You are welcome to make use of AI to help write the code.
-- This assessment is open ended, and candidates could spend weeks crafting the perfect API. We encourage you to timebox yourself, and limit the amount of time you spend. When we talk through the assessment, this can be provided as an input, and it is good to talk about the trade-offs made given the time constraint. We recommend about 6-8 hours of focused time.
-
-### Evaluation Criteria
-
-The test will be evaluated based on functional and non-functional requirements.
-
-For functional requirements, your API needs to work, and meet the requirements as provided for your level.
-
-For non-functional requirements, your API needs to be production-ready to a reasonable extent. We are looking for adherence to qualities such as testability, maintainability, observability, and security.
-
-### Supporting Assets
-
-You've been provided with a docker-compose file which will bring up a postgres database and prometheus. These are optional and provided to help get started.
-
-#### Postgres
-
-You can connect to the database via localhost:5432 using the username and password configured in the docker-compose.yml.
-
-#### Prometheus
-
-You can configure prometheus via the provided prometheus.yml file.
-
-### CodeSubmit
-
-Please organise, design, test, and document your code as if it were going into production - then push your changes to the Main branch. After you have pushed your code, you may submit the assignment on the assignment page.
-
-Best of luck, and happy coding!
-
-The Bash Team
+![Prometheus HTTP metrics](docs/images/prometheus-http-metrics.png)
