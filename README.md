@@ -36,21 +36,7 @@
   - [Prometheus Metrics and Viewing Metrics in Prometheus](#prometheus-metrics-and-viewing-metrics-in-prometheus)
   - [Viewing Metrics in Prometheus](#viewing-metrics-in-prometheus)
   - [Prometheus Monitoring](#prometheus-monitoring)
-- [Original Assignment Specification](#original-assignment-specification)
-  - [Objective](#objective)
-  - [Brief](#brief)
-  - [Tasks (Specifications)](#tasks-specifications)
-    - [Task 1 (All Candidates)](#task-1-all-candidates)
-    - [Task 2 (Intermediate & Senior)](#task-2-intermediate--senior)
-    - [Task 3 (Senior)](#task-3-senior)
-    - [Task 4 (Above and Beyond)](#task-4-above-and-beyond)
-  - [Constraints](#constraints)
-  - [Tips, Advice, Guidance](#tips-advice-guidance)
-  - [Evaluation Criteria](#evaluation-criteria)
-  - [Supporting Assets](#supporting-assets)
-    - [Postgres](#postgres)
-    - [Prometheus](#prometheus)
-  - [CodeSubmit](#codesubmit)
+
 
 ## Overview
 
@@ -901,7 +887,11 @@ The Prometheus target is configured and reporting application metrics successful
 --------------------------------------------
 
 
-
+<br>
+<br>
+<br>
+<br>
+<br>
 
 
 ### Objective
